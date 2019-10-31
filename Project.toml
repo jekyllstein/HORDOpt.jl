@@ -1,0 +1,20 @@
+name = "HORDOpt"
+uuid = "818b92c0-fbae-11e9-0583-d103e5b022d2"
+authors = ["Jason Eckstein <jekyllstein@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[compat]
+julia = "1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+
+[targets]
+test = ["Test", "DecisionTree", "PrettyTables"]
+
