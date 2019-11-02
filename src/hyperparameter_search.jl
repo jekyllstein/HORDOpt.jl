@@ -1,6 +1,84 @@
-function convert_params(pconv, raw_params, opt_params, pnames)
+"""
+    makepconvert(opt_params; minvals = [typemin(typeof(a[1])) for a in opt_params], maxvals = [typemin(typeof(a[1])) for a in opt_params])
+
+Generate tuple of functions to optionally transform parameter values after being generated.
+
+For elements of `opt_params` that are single values, uses the identity functions.
+For elements with a range, applies type conversion and rounding in the case of integers
+and optionally clamps output value to a range.  By default it uses the extreme values of
+that type.
+
+# Examples
+```julia-repl
+julia> using HORDOpt
+julia> ncols = 14;
+julia> opt_params = (  (1, ncols),  #n_subfeatures
+                (100,), #n_trees
+                (0.1, 1.0), #partial_sampling
+                (-1,), #max_depth
+                (1, 10), #min_samples_leaf
+                (2,), #min_samples_split
+                (0.0,), #min_purity_increase
+            );
+julia> pconvert = makepconvert(opt_params, minvals = [1, 1, eps(0.0), -1, 1, 1, 0.0], maxvals = [ncols, typemax(Int64), 1.0, -1, typemax(Int64), 2, 0.0]);
+```
+"""
+function makepconvert(opt_params; minvals = [typemin(typeof(a[1])) for a in opt_params], maxvals = [typemin(typeof(a[1])) for a in opt_params])
+    Tuple([begin
+        if length(p) == 2
+            T = typeof(p[1])
+            f = T <: Integer ? round : identity
+            a -> T(clamp(f(a), minvals[i], maxvals[i]))
+        else
+            identity
+        end
+    end
+    for (i, p) in enumerate(opt_params)])
+end
+
+"""
+    convert_params(pconv, raw_params, opt_params, pnames::Vector{T}) where T <: AbstractString
+
+Creates a tuple of parameters to use as arguments in the optimization function by rescaling the values
+in raw_params from a 0-1 range into the range given in `opt_params`.
+
+!!! note
+    For parameters that remain fixed, they are specified by applying the appropriate
+    pconv function to the single value in opt_params.  All other values are first
+    rescaled from the raw value into the range and then transformed by pconv.
+
+# Examples
+```julia-repl
+julia> using HORDOpt
+julia> pnames = ["n_subfeatures", "n_trees", "partial_sampling", "max_depth", "min_samples_leaf", "min_samples_split", "min_purity_increase"];
+julia> ncols = 14;
+julia> opt_params = (   (1, ncols),  #n_subfeatures
+                        (100,), #n_trees
+                        (0.1, 1.0), #partial_sampling
+                        (-1,), #max_depth
+                        (1, 10), #min_samples_leaf
+                        (2,), #min_samples_split
+                        (0.0,), #min_purity_increase
+                   );
+julia> pconvert = makepconvert(opt_params, minvals = [1, 1, eps(0.0), -1, 1, 1, 0.0], maxvals = [ncols, typemax(Int64), 1.0, -1, typemax(Int64), 2, 0.0]);
+julia> h = findall(p -> length(p) == 2, opt_params);
+julia> raw_params = Tuple(rand(length(h)))
+(0.18248479399609585, 0.03425670579069151, 0.4141927499235867)
+julia> params = convert_params(pconvert, raw_params, opt_params, pnames)
+
+Using the following fixed hyper parameters : n_trees = 100, max_depth = -1, min_samples_split = 2, min_purity_increase = 0.0,
+Setting the following hyper parameters : n_subfeatures = 3, partial_sampling = 0.13083103521162237, min_samples_leaf = 5,
+
+(3, 100, 0.13083103521162237, -1, 5, 2, 0.0)
+```
+"""
+function convert_params(pconv, raw_params, opt_params, pnames::Vector{T}) where T <: AbstractString
     #vector of indices that contain two values => these parameters will be tuned
     h = findall(p -> length(p) == 2, opt_params)
+    
+    #the number of raw params should match the number of parameters with a range
+    @assert length(raw_params) == length(h) 
+    @assert length(pconv) == length(opt_params)
 
     paramsdict = Dict(zip(h, raw_params))
 
@@ -29,6 +107,8 @@ function convert_params(pconv, raw_params, opt_params, pnames)
     return params 
 end
 
+
+
 function run_opt_func(optfunc::Function, params, resultsdict)
     out = if haskey(resultsdict, params)
         println("Using results dictionary instead of new function evaluation")
@@ -51,29 +131,40 @@ end
 
 ###########################################Main Algorithm######################################################
 """
-```julia
     run_HORDopt(optfunc::Function, opt_params::NTuple{U, N}, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter \$n" for n in 1:length(opt_params)], pconvert::NTuple{T, N} = map(identity, opt_params)) where T <: Function where U <: Real where N
-```
 
-Runs hyperparameter optimization algorithm based on dynamic search with and RBF surrogate function.  Given an 
-optimization function and set of tunable parameters, iterates through trials attempting to minimize the error
-objective.
+Runs hyperparameter optimization algorithm based on dynamic search 
+with and RBF surrogate function.  Given an optimization function and 
+set of tunable parameters, iterates through trials attempting to minimize 
+the error objective.
 
-The return type is a tuple of 4 vectors with results for each trial and a dictionary of results for a given set of parameters
+The return type is a tuple of 4 vectors with results for each trial and a 
+dictionary of results for a given set of parameters.
 1. Objective error 
 2. Parameters used
 3. Other function outputs
 4. Parameter vectors scaled into 0-1 range
 5. Dictionary of optfunc outputs for given parameter inputs
 
+See `runtests.jl` for a complete example using DecisionTree.jl optimizing the parameters
+for a random forest.
+
 !!! note
-    * `optfunc` must be a function that takes as input the number of parameters contained in opt_params as single values.  Its output must be one or several values with the first value being the objective to be minimized.
-    * `opt_params` is a tuple of tuples that contain either the single parameter to remain fixed or a range for a parameter to vary over.  The values must be finite to allow valid steps through the parameter space.
-    * `pconvert` is a tuple of functions the same length as opt_params that optionally transform the values in the given range.  For example, a range of 0,1 can be transformed into 0 to Inf with f(x) = 1/(x - 1) + 1 
+    `optfunc` must be a function that takes as input the number of parameters 
+    contained in opt_params as single values.  Its output must be one or several 
+    values with the first value being the objective to be minimized.
+    
+    `opt_params` is a tuple of tuples that contain either the single parameter 
+    to remain fixed or a range for a parameter to vary over.  The values must be 
+    finite to allow valid steps through the parameter space.
+    
+    `pconvert` is a tuple of functions the same length as opt_params that optionally 
+    transform the values in the given range.  For example, a range of 0,1 can be transformed 
+    into 0 to Inf with f(x) = 1/(x - 1) + 1 
 
 # Examples
-using HORDOpt
 ```julia-repl
+using HORDOpt
 julia> opt_params = ((0.0, 1.0), (0.0,), (0.0, 1.0))
 ((0.0, 1.0), (0.0,), (0.0, 1.0))
 julia> pconvert = map(a -> b -> clamp(b, 0.0, 1.0-eps(1.0)), opt_params)
@@ -254,8 +345,9 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         (errbest, indbest) = findmin(errs)
         xbest = xs[indbest]
 
+        indstr = indbest - indcorrect < 1 ? "a previous trial iteration" : "iteration $(indbest-indcorrect)" 
         println()
-        println(string("Current lowest error is ", errbest, " from iteration ", indbest - indcorrect, " using the following configuration:"))
+        println(string("Current lowest error is ", errbest, " from $indstr using the following configuration:"))
         if !isempty(ih)
             println(string("Fixed hyper parameters:", mapreduce(i -> string(pnames[i], " = ", params[indbest][i], ", "), (a, b) -> string(a, b), ih)))
         end
@@ -388,4 +480,28 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         push!(outputs, outputnew)
     end
     (errs, [a[h] for a in params], outputs, xs, resultsdict)
+end
+
+function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
+    (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict)
+    h = findall(a -> length(a) == 2, opt_params)
+    ih = setdiff(eachindex(opt_params), h)
+    (newerr, bestind) = findmin(errs)
+    besterr = Inf
+    results = [(1, errs[bestind], params[bestind], outputs[bestind])]
+    id = 2
+    while newerr < besterr
+        println("=================================================================")
+        println("=====================Starting Trial $id==========================")
+        println("=================================================================")
+        besterr = newerr
+        (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert)
+        (newerr, bestind) = findmin(errs)
+        push!(results, (id, errs[bestind], params[bestind], outputs[bestind]))
+        id += 1
+    end
+
+    fixednames = pnames[ih]
+    fixedparams = iterate(keys(resultsdict))[1][ih]
+    return results, resultsdict, pnames[h], fixednames, fixedparams
 end

@@ -6,7 +6,7 @@ using PrettyTables
 
 Random.seed!(0)
 
-m = 10000
+m = 1000
 ncols = 14
 m2 = floor(Int64, m/2)
 X = rand(m, ncols)
@@ -56,16 +56,12 @@ opt_params = ( 	(1, ncols),  #n_subfeatures: number of features to consider at r
 			)
 
 #convert necessary variables to integers and clamp values in desired range
-pconvert = (a -> clamp(round(Int64, a), 1, ncols), 
-			a -> clamp(round(Int64, a), 1, typemax(Int64)), 
-			a -> clamp(a, eps(0.0), 1.0), 
-			identity, 
-			a -> clamp(round(Int64, a), 1, typemax(Int64)), 
-			identity, 
-			identity)
+pconvert = makepconvert(opt_params, minvals = [1, 1, eps(0.0), -1, 1, 1, 0.0], maxvals = [ncols, typemax(Int64), 1.0, -1, typemax(Int64), 2, 0.0])
+
+h = findall(p -> length(p) == 2, opt_params)
 
 #test raw_params conversion from a random vector between 0 and 1
-raw_params = Tuple(rand(length(opt_params)))
+raw_params = Tuple(rand(length(h)))
 
 #test that parameter conversions are correct
 params = convert_params(pconvert, raw_params, opt_params, pnames)
@@ -75,29 +71,38 @@ params = convert_params(pconvert, raw_params, opt_params, pnames)
 @test typeof(params[5]) <: Integer
 
 isp = (8, 100, 1.0, -1, 1, 2, 0.0)
-function runtest(isp)
-	(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 1, 50, isp, pnames = pnames, pconvert = pconvert)
-	h = findall(a -> length(a) == 2, opt_params)
-	(newerr, bestind) = findmin(testerrs)
-	besterr = Inf
-	results = [[1 testerrs[bestind] collect(params[bestind])']]
-	id = 2
-	while newerr < besterr
-		println("=================================================================")
-		println("=====================Starting Trial $id==========================")
-		println("=================================================================")
-		besterr = newerr
-		ispnew = collect(isp)
-		ispnew[h] .= collect(params)[bestind]
-		ispnew = Tuple(ispnew)
-		(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, id, 50, ispnew, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert)
-		(newerr, bestind) = findmin(testerrs)
-		push!(results, [id testerrs[bestind] collect(params[bestind])'])
-		id += 1
-	end
+# function runtest(isp)
+# 	(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 1, 50, isp, pnames = pnames, pconvert = pconvert)
+# 	h = findall(a -> length(a) == 2, opt_params)
+# 	(newerr, bestind) = findmin(testerrs)
+# 	besterr = Inf
+# 	results = [[1 testerrs[bestind] collect(params[bestind])']]
+# 	id = 2
+# 	while newerr < besterr
+# 		println("=================================================================")
+# 		println("=====================Starting Trial $id==========================")
+# 		println("=================================================================")
+# 		besterr = newerr
+# 		ispnew = collect(isp)
+# 		ispnew[h] .= collect(params)[bestind]
+# 		ispnew = Tuple(ispnew)
+# 		(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, id, 50, ispnew, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert)
+# 		(newerr, bestind) = findmin(testerrs)
+# 		push!(results, [id testerrs[bestind] collect(params[bestind])'])
+# 		id += 1
+# 	end
 
-	pretty_table(reduce(vcat, results), ["Trial"; "Best Test Error"; pnames[h]])
+# 	pretty_table(reduce(vcat, results), ["Trial"; "Best Test Error"; pnames[h]])
+# end
+
+(results, resultsdict, cnames, fixednames, fixedparams) = runHORDopt_trials(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 50, isp, pnames = pnames, pconvert = pconvert)
+
+output = mapreduce(vcat, results) do a
+    [a[1]; collect(a[2]); collect(a[3])]'
 end
+header = ["Trial"; "Best Test Error"; cnames]
 
-runtest(isp)
+println("Results for holding the followering parameters: $fixednames")
+println("Fixed at: $fixedparams")
+pretty_table(output, header)
 

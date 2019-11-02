@@ -6,6 +6,6 @@ using Random
 include("parameter_utils.jl")
 include("hyperparameter_search.jl")
 
-export run_HORDopt, convert_params
+export runHORDopt_trials, run_HORDopt, convert_params, makepconvert
 
 end # module
