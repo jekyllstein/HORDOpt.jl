@@ -203,7 +203,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         push!(errs, out[1])
         #extract the other output variables 
         if length(out) > 1
-            push!(outputs, out[2])
+            push!(outputs, out[2:end])
         else
             push!(outputs, ())
         end
@@ -287,7 +287,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     end
     err1 = output1[1]
     if length(output1) > 1
-        otheroutput1 = output1[2]
+        otheroutput1 = output1[2:end]
     else
         otheroutput1 = ()
     end
@@ -308,7 +308,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         push!(errs, out[1])
         #extract the other output variables 
         if length(out) > 1
-            push!(outputs, out[2])
+            push!(outputs, out[2:end])
         else
             push!(outputs, ())
         end
@@ -436,7 +436,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
       
         errnew = outnew[1]
         if length(outnew) > 1
-            outputnew = outnew[2]
+            outputnew = outnew[2:end]
         else
             outputnew = ()
         end
