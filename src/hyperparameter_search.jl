@@ -59,31 +59,26 @@ Runs hyperparameter optimization algorithm based on dynamic search with and RBF 
 optimization function and set of tunable parameters, iterates through trials attempting to minimize the error
 objective.
 
-The return type is a tuple containing vectors of results for each trial
+The return type is a tuple of 4 vectors with results for each trial and a dictionary of results for a given set of parameters
 1. Objective error 
 2. Parameters used
 3. Other function outputs
 4. Parameter vectors scaled into 0-1 range
 5. Dictionary of optfunc outputs for given parameter inputs
 
-> Note
-- optfunc must be a function that takes as input the number of parameters contained in opt_params as single values.
-- optfunc must output one or several values with the first value being the objective to be minimized
-- opt_params is a tuple of tuples that contain either the single parameter to remain fixed or a range for a parameter to vary over.  The values must be finite to allow valid steps through the parameter space.
-- pconvert is a tuple of functions the same length as opt_params that optionally transform the values in the given range.  For example, a range of 0,1 can be transformed into 0 to Inf with f(x) = 1/(x - 1) + 1 
+!!! note
+    * `optfunc` must be a function that takes as input the number of parameters contained in opt_params as single values.  Its output must be one or several values with the first value being the objective to be minimized.
+    * `opt_params` is a tuple of tuples that contain either the single parameter to remain fixed or a range for a parameter to vary over.  The values must be finite to allow valid steps through the parameter space.
+    * `pconvert` is a tuple of functions the same length as opt_params that optionally transform the values in the given range.  For example, a range of 0,1 can be transformed into 0 to Inf with f(x) = 1/(x - 1) + 1 
 
-Examples
-***
-***
-***
+# Examples
 using HORDOpt
-```julia
+```julia-repl
 julia> opt_params = ((0.0, 1.0), (0.0,), (0.0, 1.0))
 ((0.0, 1.0), (0.0,), (0.0, 1.0))
 julia> pconvert = map(a -> b -> clamp(b, 0.0, 1.0-eps(1.0)), opt_params)
 (getfield(Main, Symbol("##8#10"))(), getfield(Main, Symbol("##8#10"))(), getfield(Main, Symbol("##8#10"))())
-julia> HORDOpt(optFunc, opt_params, pconvert, trialid, nmax, pconvert = pconvert)
-...
+julia> (errs, params, outputs, xs, resultsdict) = HORDOpt(optfunc, opt_params, pconvert, trialid, nmax, pconvert = pconvert)
 ```
 """
 function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
@@ -133,7 +128,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     println()
     println(string("On trial ", trialid, " tuning the following hyperparameters: ", mapreduce(a -> string(pnames[a], ", "), (a, b) -> string(a, b), h)))
     if !isempty(ih)
-        println(string("Keeping the folowing hyperparameters fixed: ", mapreduce(a -> string(pnames[a], " = ", pconvert[a](opt_params[a]), ", "), (a, b) -> string(a, b), ih)))
+        println(string("Keeping the folowing hyperparameters fixed: ", mapreduce(a -> string(pnames[a], " = ", pconvert[a](opt_params[a][1]), ", "), (a, b) -> string(a, b), ih)))
     end
     println()
 

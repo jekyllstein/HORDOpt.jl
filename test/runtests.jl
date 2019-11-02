@@ -7,8 +7,9 @@ using PrettyTables
 Random.seed!(0)
 
 m = 10000
+ncols = 14
 m2 = floor(Int64, m/2)
-X = rand(m, 14)
+X = rand(m, ncols)
 yideal = (10 .*sin.(pi.*X[:, 1].*X[:, 2])) .+ 20 .*(X[:, 3] .- 0.5).^2 .+ 10 .*X[:, 4] + 5 .*X[:, 5]
 y = yideal .+ randn(m)
 #y only depends on X1 to X5, X6 through X10 are random noise variables
@@ -45,8 +46,8 @@ end
 
 pnames = ["n_subfeatures", "n_trees", "partial_sampling", "max_depth", "min_samples_leaf", "min_samples_split", "min_purity_increase"]
 
-opt_params = ( 	(1, 14),  #n_subfeatures: number of features to consider at random per split (default: -1, sqrt(# features))
-			   	(1, 1000), #n_trees
+opt_params = ( 	(1, ncols),  #n_subfeatures: number of features to consider at random per split (default: -1, sqrt(# features))
+			   	(100,), #n_trees
 			   	(0.1, 1.0), #partial_sampling
 				(-1,), #max_depth
 				(1, 10), #min_samples_leaf
@@ -55,7 +56,7 @@ opt_params = ( 	(1, 14),  #n_subfeatures: number of features to consider at rand
 			)
 
 #convert necessary variables to integers and clamp values in desired range
-pconvert = (a -> clamp(round(Int64, a), 1, 14), 
+pconvert = (a -> clamp(round(Int64, a), 1, ncols), 
 			a -> clamp(round(Int64, a), 1, typemax(Int64)), 
 			a -> clamp(a, eps(0.0), 1.0), 
 			identity, 
@@ -73,7 +74,7 @@ params = convert_params(pconvert, raw_params, opt_params, pnames)
 @test typeof(params[2]) <: Integer
 @test typeof(params[5]) <: Integer
 
-isp = (8, 1000, 1.0, -1, 1, 2, 0.0)
+isp = (8, 100, 1.0, -1, 1, 2, 0.0)
 function runtest(isp)
 	(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 1, 50, isp, pnames = pnames, pconvert = pconvert)
 	h = findall(a -> length(a) == 2, opt_params)
