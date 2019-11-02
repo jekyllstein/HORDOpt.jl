@@ -31,4 +31,10 @@ notifications:
   email: false
 
 after_success:
-  - julia -e 'using Pkg; cd(Pkg.dir("HORDOpt")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder()); Codecov.submit(process_folder())';
+  - julia -e 'using Pkg; 
+              import HORDOpt;
+              cd(joinpath(dirname(pathof(HORDOpt)), ".."));
+              Pkg.add("Coverage"); 
+              using Coverage; 
+              Coveralls.submit(process_folder()); 
+              Codecov.submit(process_folder())';
