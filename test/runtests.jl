@@ -71,30 +71,6 @@ params = convert_params(pconvert, raw_params, opt_params, pnames)
 @test typeof(params[5]) <: Integer
 
 isp = (8, 100, 1.0, -1, 1, 2, 0.0)
-# function runtest(isp)
-# 	(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 1, 50, isp, pnames = pnames, pconvert = pconvert)
-# 	h = findall(a -> length(a) == 2, opt_params)
-# 	(newerr, bestind) = findmin(testerrs)
-# 	besterr = Inf
-# 	results = [[1 testerrs[bestind] collect(params[bestind])']]
-# 	id = 2
-# 	while newerr < besterr
-# 		println("=================================================================")
-# 		println("=====================Starting Trial $id==========================")
-# 		println("=================================================================")
-# 		besterr = newerr
-# 		ispnew = collect(isp)
-# 		ispnew[h] .= collect(params)[bestind]
-# 		ispnew = Tuple(ispnew)
-# 		(testerrs, params, trainerrs, xs, resultsdict) = run_HORDopt(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, id, 50, ispnew, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert)
-# 		(newerr, bestind) = findmin(testerrs)
-# 		push!(results, [id testerrs[bestind] collect(params[bestind])'])
-# 		id += 1
-# 	end
-
-# 	pretty_table(reduce(vcat, results), ["Trial"; "Best Test Error"; pnames[h]])
-# end
-
 (results, resultsdict, cnames, fixednames, fixedparams) = runHORDopt_trials(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 50, isp, pnames = pnames, pconvert = pconvert)
 
 output = mapreduce(vcat, results) do a

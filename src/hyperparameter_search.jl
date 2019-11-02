@@ -482,6 +482,39 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     (errs, [a[h] for a in params], outputs, xs, resultsdict)
 end
 
+"""
+     runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter \$n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
+
+Runs hyperparameter optimization algorithm based on dynamic search 
+with and RBF surrogate function.  Given an optimization function and 
+set of tunable parameters. 
+
+Iterates through multiple sets of trials until there is no improvement
+to the objective function.
+
+Returns
+1. results summary which contains a tuple of vectors with the best 
+results from each trial.
+2. resultsdict which saves the results for each trial at a given set of parameters
+3. vector of parameter names that vary with each trial
+4. vector of parameter names that remain fixed
+5. vector of parameters that remain fixed  
+
+See runtests.jl for a complete example that also processes the output data.
+
+!!! note
+    `optfunc` must be a function that takes as input the number of parameters 
+    contained in opt_params as single values.  Its output must be one or several 
+    values with the first value being the objective to be minimized.
+    
+    `opt_params` is a tuple of tuples that contain either the single parameter 
+    to remain fixed or a range for a parameter to vary over.  The values must be 
+    finite to allow valid steps through the parameter space.
+    
+    `pconvert` is a tuple of functions the same length as opt_params that optionally 
+    transform the values in the given range.  For example, a range of 0,1 can be transformed 
+    into 0 to Inf with f(x) = 1/(x - 1) + 1 
+"""
 function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
     (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict)
     h = findall(a -> length(a) == 2, opt_params)
