@@ -76,7 +76,7 @@ isp = (8, 100, 1.0, -1, 1, 2, 0.0)
 output = mapreduce(vcat, results) do a
     [a[1]; collect(a[2]); collect(a[3])]'
 end
-header = ["Trial"; "Best Test Error"; cnames]
+header = ["Trial"; "Best Test Error"; pnames]
 
 println("Results for holding the followering parameters: $fixednames")
 println("Fixed at: $fixedparams")

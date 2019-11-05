@@ -23,12 +23,15 @@ julia> opt_params = (  (1, ncols),  #n_subfeatures
 julia> pconvert = makepconvert(opt_params, minvals = [1, 1, eps(0.0), -1, 1, 1, 0.0], maxvals = [ncols, typemax(Int64), 1.0, -1, typemax(Int64), 2, 0.0]);
 ```
 """
-function makepconvert(opt_params; minvals = [typemin(typeof(a[1])) for a in opt_params], maxvals = [typemin(typeof(a[1])) for a in opt_params])
+function makepconvert(opt_params; minvals = [typemin(typeof(a[1])) for a in opt_params], maxvals = [typemin(typeof(a[1])) for a in opt_params], sigdigits = 4)
     Tuple([begin
         if length(p) == 2
             T = typeof(p[1])
-            f = T <: Integer ? round : identity
-            a -> T(clamp(f(a), minvals[i], maxvals[i]))
+            if T <: Integer
+                a -> round(T, clamp(round(a, sigdigits = 4), minvals[i], maxvals[i]))
+            else
+                a -> T(clamp(round(a, sigdigits = 4), minvals[i], maxvals[i]))
+            end
         else
             identity
         end
@@ -172,7 +175,7 @@ julia> pconvert = map(a -> b -> clamp(b, 0.0, 1.0-eps(1.0)), opt_params)
 julia> (errs, params, outputs, xs, resultsdict) = HORDOpt(optfunc, opt_params, pconvert, trialid, nmax, pconvert = pconvert)
 ```
 """
-function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
+function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params), usedictpoints = true)
     #vector of indices that contain two values => these parameters will be tuned
     h = findall(p -> length(p) == 2, opt_params)
 
@@ -184,7 +187,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         []
     else
         # map((a, b) -> mapRangeInv(a, b[1], b[2]), isp[h],  opt_params[h])
-        [map_range_inv(isp[i], opt_params[i][1], opt_params[i][2]) for i in h]
+        [map_range_inv(pconvertinv[i](pconvert[i](isp[i])), opt_params[i][1], opt_params[i][2]) for i in h]
     end
 
     xs = Vector{Vector{Float64}}()
@@ -192,28 +195,32 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     outputs = Vector()
     params = Vector{Tuple}()
     #adding previous values from resultsdict to xs
-    for r in resultsdict
-        ps = r[1]
-        x = [map_range_inv(ps[i], opt_params[j][1], opt_params[j][2]) for (i, j) in enumerate(h)]
-        out = run_opt_func(optfunc, ps, resultsdict)
+    if usedictpoints
+        for r in resultsdict
+            ps = r[1]
+            x = [map_range_inv(pconvertinv[i](ps[i]), opt_params[i][1], opt_params[i][2]) for i in h]
+            out = run_opt_func(optfunc, ps, resultsdict)
 
-        #add new params to list
-        push!(params, ps)
-        #extract current training errors which we are trying to minimize
-        push!(errs, out[1])
-        #extract the other output variables 
-        if length(out) > 1
-            push!(outputs, out[2:end])
-        else
-            push!(outputs, ())
+            #add new params to list
+            push!(params, ps)
+            #extract current training errors which we are trying to minimize
+            push!(errs, out[1])
+            #extract the other output variables 
+            if length(out) > 1
+                push!(outputs, out[2:end])
+            else
+                push!(outputs, ())
+            end
+            push!(xs, x)
         end
-        push!(xs, x)
     end
     indcorrect = length(errs)
 
     if !isempty(isp_x)
         println("Prepending initial starting point to parameter vectors")
-        push!(xs, isp_x)
+        if !in(isp_x, xs)
+            push!(xs, isp_x)
+        end
     end
 
     println()
@@ -268,7 +275,9 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
             v = samplevecs[j]   
             paramvec[v[i]]
         end
-        push!(xs, x)
+        if !in(x, xs)
+            push!(xs, x)
+        end
     end
 
     n0 = length(xs) - indcorrect
@@ -297,7 +306,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     
     for (i, x) in enumerate(view(xs, indcorrect+2:indcorrect+n0))
         println("------------------------------------------------")
-        println("Starting initial point $i of $n0")
+        println("Starting initial point $(i+1) of $n0")
         println("------------------------------------------------")
         ps = convert_params(pconvert, x, opt_params, pnames)
         out = run_opt_func(optfunc, ps, resultsdict)
@@ -324,17 +333,19 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     failcounter = 0
 
     ##---------------------ALGORITHM LOOP----------------------------------------------
-    while (n < nmax) & (tfail < max(5, d)*3) & (failcounter < 10) & (varn > 1e-6)
+    while (n <= nmax) & (tfail < max(5, d)*3) & (failcounter < 10) & (varn > 1e-6)
         println()
-        println(string("Updating surrogate model on iteration ", n, " out of ", nmax))
+        println(string("Updating surrogate model on iteration ", n + 1, " out of ", nmax))
         println()
 
+        # println(xs)
         phi = calc_phi_mat(xs)
         p = formP(xs)
 
         mat1 = [phi p; p' zeros(d+1, d+1)]
         vec = [errs; zeros(d+1)]
 
+        # println(mat1)
         #interpolated paramters
         c = pinv(mat1) * vec
 
@@ -421,7 +432,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
                 end
             end
 
-            validnewpoint = !in(candidateparams, params) 
+            validnewpoint = !in(candidateparams, params) && !in(xnew, xs)
             failcounter += 1
         end
 
@@ -479,7 +490,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         push!(params,  paramsnew)
         push!(outputs, outputnew)
     end
-    (errs, [a[h] for a in params], outputs, xs, resultsdict)
+    (errs, params, outputs, xs, resultsdict)
 end
 
 """
@@ -515,21 +526,28 @@ See runtests.jl for a complete example that also processes the output data.
     transform the values in the given range.  For example, a range of 0,1 can be transformed 
     into 0 to Inf with f(x) = 1/(x - 1) + 1 
 """
-function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
-    (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict)
+function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
+    (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict, pconvertinv = pconvertinv)
     h = findall(a -> length(a) == 2, opt_params)
     ih = setdiff(eachindex(opt_params), h)
     (newerr, bestind) = findmin(errs)
     besterr = Inf
     results = [(1, errs[bestind], params[bestind], outputs[bestind])]
+    bestparams = isp
     id = 2
     while newerr < besterr
         println("=================================================================")
         println("=====================Starting Trial $id==========================")
         println("=================================================================")
         besterr = newerr
-        (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert)
+        (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv)
         (newerr, bestind) = findmin(errs)
+        bestparams = params[bestind]
+        if (newerr >= besterr) && (id > 2) #try once ignoring previous points
+            (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, [pconvertinv[i](a) for (i, a) in enumerate(bestparams)], resultsdict=resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv, usedictpoints=false)
+            (newerr, bestind) = findmin(errs)
+        end
+
         push!(results, (id, errs[bestind], params[bestind], outputs[bestind]))
         id += 1
     end
