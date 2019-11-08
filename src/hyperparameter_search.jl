@@ -287,43 +287,45 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
     println()
     #generate initial results of Xs parameter samples
     
-    println("Starting initial point 1 of $n0")
-    p1 = convert_params(pconvert, xs[1+indcorrect], opt_params, pnames)
-    if isempty(resultsdict)
-        (output1, resultsdict) = run_opt_func(optfunc, p1) 
-    else
-        output1 = run_opt_func(optfunc, p1, resultsdict)
-    end
-    err1 = output1[1]
-    if length(output1) > 1
-        otheroutput1 = output1[2:end]
-    else
-        otheroutput1 = ()
-    end
-    push!(errs, err1)
-    push!(params, p1)
-    push!(outputs, otheroutput1)
-    
-    for (i, x) in enumerate(view(xs, indcorrect+2:indcorrect+n0))
-        println("------------------------------------------------")
-        println("Starting initial point $(i+1) of $n0")
-        println("------------------------------------------------")
-        ps = convert_params(pconvert, x, opt_params, pnames)
-        out = run_opt_func(optfunc, ps, resultsdict)
-
-        #add new params to list
-        push!(params, ps)
-        #extract current training errors which we are trying to minimize
-        push!(errs, out[1])
-        #extract the other output variables 
-        if length(out) > 1
-            push!(outputs, out[2:end])
+    if n0 > 0
+        println("Starting initial point 1 of $n0")
+        p1 = convert_params(pconvert, xs[1+indcorrect], opt_params, pnames)
+        if isempty(resultsdict)
+            (output1, resultsdict) = run_opt_func(optfunc, p1) 
         else
-            push!(outputs, ())
+            output1 = run_opt_func(optfunc, p1, resultsdict)
+        end
+        err1 = output1[1]
+        if length(output1) > 1
+            otheroutput1 = output1[2:end]
+        else
+            otheroutput1 = ()
+        end
+        push!(errs, err1)
+        push!(params, p1)
+        push!(outputs, otheroutput1)
+        
+        if n0 > 1
+            for (i, x) in enumerate(view(xs, indcorrect+2:indcorrect+n0))
+                println("------------------------------------------------")
+                println("Starting initial point $(i+1) of $n0")
+                println("------------------------------------------------")
+                ps = convert_params(pconvert, x, opt_params, pnames)
+                out = run_opt_func(optfunc, ps, resultsdict)
+
+                #add new params to list
+                push!(params, ps)
+                #extract current training errors which we are trying to minimize
+                push!(errs, out[1])
+                #extract the other output variables 
+                if length(out) > 1
+                    push!(outputs, out[2:end])
+                else
+                    push!(outputs, ())
+                end
+            end
         end
     end
-
- 
 
     #initial number of configurations
     n = n0
