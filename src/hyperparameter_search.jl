@@ -545,9 +545,11 @@ function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; result
         (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv)
         (newerr, bestind) = findmin(errs)
         bestparams = params[bestind]
-        if (newerr >= besterr) && (id > 2) #try once ignoring previous points
+        if (newerr >= besterr) #try once ignoring previous points except best result and narrowing range
+            opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
             (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, [pconvertinv[i](a) for (i, a) in enumerate(bestparams)], resultsdict=resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv, usedictpoints=false)
             (newerr, bestind) = findmin(errs)
+            bestparams = params[bestind]
         end
 
         push!(results, (id, errs[bestind], params[bestind], outputs[bestind]))

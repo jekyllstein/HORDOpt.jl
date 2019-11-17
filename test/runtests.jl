@@ -74,7 +74,7 @@ isp = (8, 100, 1.0, -1, 1, 2, 0.0)
 (results, resultsdict, cnames, fixednames, fixedparams) = runHORDopt_trials(params -> trainforest(Xtrain, ytrain, Xtest, ytest, params...), opt_params, 50, isp, pnames = pnames, pconvert = pconvert)
 
 output = mapreduce(vcat, results) do a
-    [a[1]; collect(a[2]); collect(a[3])]'
+    [a[1]; round.(collect(a[2]), sigdigits=3); round.(collect(a[3]), sigdigits=3)]'
 end
 header = ["Trial"; "Best Test Error"; pnames]
 

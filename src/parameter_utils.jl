@@ -94,3 +94,19 @@ function permuteweight(w)
         0.3
     end 
 end
+
+function refineparams(optparams, bestparams, pconvert, pconvertinv)
+#narrow range for parameter search based on the last
+#observed best parameters
+    optind = findall(a -> length(a)>1, optparams)
+    Tuple([begin
+        if length(p) == 1
+            p
+        else
+            newp1 = pconvertinv[i](pconvert[i]((pconvertinv[i](bestparams[i]) + p[1])/2))
+            newp2 = pconvertinv[i](pconvert[i]((pconvertinv[i](bestparams[i]) + p[2])/2))
+            (newp1, newp2)
+        end
+    end
+    for (i, p) in enumerate(optparams)])
+end
