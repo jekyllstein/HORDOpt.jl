@@ -28,9 +28,9 @@ function makepconvert(opt_params; minvals = [typemin(typeof(a[1])) for a in opt_
         if length(p) == 2
             T = typeof(p[1])
             if T <: Integer
-                a -> round(T, clamp(round(a, sigdigits = 4), minvals[i], maxvals[i]))
+                a -> round(T, clamp(round(a, sigdigits = sigdigits), minvals[i], maxvals[i]))
             else
-                a -> T(clamp(round(a, sigdigits = 4), minvals[i], maxvals[i]))
+                a -> T(clamp(round(a, sigdigits = sigdigits), minvals[i], maxvals[i]))
             end
         else
             identity
@@ -275,6 +275,11 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
             v = samplevecs[j]   
             paramvec[v[i]]
         end
+        
+        #remap x based on any clamping from pconvert
+        p = convert_params(pconvert, x, opt_params, pnames)
+        x = [map_range_inv(pconvertinv[i](p[i]), opt_params[i][1], opt_params[i][2]) for i in h]
+        
         if !in(x, xs)
             push!(xs, x)
         end
@@ -417,7 +422,9 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
             (bestscore, bestind) = findmin(score)
             xnew = candidatepoints[bestind]
 
-           
+            #remap xnew based on any clamping from pconvert
+            pnew = convert_params(pconvert, xnew, opt_params, pnames)
+            xnew = [map_range_inv(pconvertinv[i](pnew[i]), opt_params[i][1], opt_params[i][2]) for i in h]
 
             paramsdict = Dict(zip(h, xnew))
 
@@ -435,6 +442,9 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
             end
 
             validnewpoint = !in(candidateparams, params) && !in(xnew, xs)
+            if !validnewpoint
+                printstyled(stdout, "NOT A VALID UNIQUE POINT TO TEST, SKIPPING", color=:red)
+            end
             failcounter += 1
         end
 
