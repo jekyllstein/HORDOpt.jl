@@ -105,7 +105,22 @@ function refineparams(optparams, bestparams, pconvert, pconvertinv)
         else
             newp1 = pconvertinv[i](pconvert[i]((pconvertinv[i](bestparams[i]) + p[1])/2))
             newp2 = pconvertinv[i](pconvert[i]((pconvertinv[i](bestparams[i]) + p[2])/2))
-            (newp1, newp2)
+            T = typeof(newp1)
+            if T <: Integer
+                if newp1 == newp2
+                    (newp1-1, newp2+1)
+                else
+                    (newp1, newp2)
+                end
+            else
+                if abs(newp1/newp2 - 1) < 0.01
+                    m = (newp1+newp2)/2
+                    d = m*0.005
+                    (T(m-d), T(m+d))
+                else   
+                    (newp1, newp2)
+                end
+            end            
         end
     end
     for (i, p) in enumerate(optparams)])
