@@ -134,7 +134,7 @@ end
 
 ###########################################Main Algorithm######################################################
 """
-    run_HORDopt(optfunc::Function, opt_params::NTuple{U, N}, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter \$n" for n in 1:length(opt_params)], pconvert::NTuple{T, N} = map(identity, opt_params)) where T <: Function where U <: Real where N
+    run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params), usedictpoints = true)
 
 Runs hyperparameter optimization algorithm based on dynamic search 
 with and RBF surrogate function.  Given an optimization function and 
@@ -164,6 +164,10 @@ for a random forest.
     `pconvert` is a tuple of functions the same length as opt_params that optionally 
     transform the values in the given range.  For example, a range of 0,1 can be transformed 
     into 0 to Inf with f(x) = 1/(x - 1) + 1 
+
+    `pconvertinv` is a tuple of functions the same length as opt_params that reverse the transform
+    given in `pconvert`.  If an arugment is supplied to `pconvert` that differs from the identity function
+    and nothing is supplied to `pconvertinv` then the parameters may not be optimized correctly. 
 
 # Examples
 ```julia-repl
@@ -506,7 +510,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
 end
 
 """
-     runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter \$n" for n in 1:length(opt_params)], pconvert = map(identity, opt_params))
+     runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
 
 Runs hyperparameter optimization algorithm based on dynamic search 
 with and RBF surrogate function.  Given an optimization function and 
@@ -537,6 +541,10 @@ See runtests.jl for a complete example that also processes the output data.
     `pconvert` is a tuple of functions the same length as opt_params that optionally 
     transform the values in the given range.  For example, a range of 0,1 can be transformed 
     into 0 to Inf with f(x) = 1/(x - 1) + 1 
+
+    `pconvertinv` is a tuple of functions the same length as opt_params that reverse the transform
+    given in `pconvert`.  If an arugment is supplied to `pconvert` that differs from the identity function
+    and nothing is supplied to `pconvertinv` then the parameters may not be optimized correctly. 
 """
 function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
     (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict, pconvertinv = pconvertinv)
