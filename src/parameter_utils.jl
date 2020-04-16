@@ -1,6 +1,19 @@
 function phi(x1, x2)
 	#euclidean distance between x1 and x2 cubed
-	norm(x1 .- x2, 2)^3
+	n = norm(x1 .- x2, 2)^3
+    # if isinf(n) || isnan(n)
+    #     println("phi value is $n which is illegal, replacing with $(maxintfloat(typeof(n)))")
+    #     println("X1 = $x1")
+    #     println("X2 = $x2")
+
+        #discovered error occured when x vectors themselves contained Inf values
+        #doing this replacement doesn't fix the problem with the pseudoinverse, also on retrials
+        #there were repeated points with Inf values which caused NaN values.  So this replacement
+        #is only useful for debugging but not for solving the problem.
+    #     return maxintfloat(typeof(n))
+    # else
+    #     return n
+    # end
 end
 
 #calculate phi matrix using an input of previous hyperparamter vectors

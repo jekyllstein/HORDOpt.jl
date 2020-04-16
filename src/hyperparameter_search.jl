@@ -134,7 +134,7 @@ end
 
 ###########################################Main Algorithm######################################################
 """
-    run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params), usedictpoints = true)
+    run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; resultsdict = (), pnames = ["Parameter \$n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params), usedictpoints = true)
 
 Runs hyperparameter optimization algorithm based on dynamic search 
 with and RBF surrogate function.  Given an optimization function and 
@@ -205,17 +205,23 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
             x = [map_range_inv(pconvertinv[i](ps[i]), opt_params[i][1], opt_params[i][2]) for i in h]
             out = run_opt_func(optfunc, ps, resultsdict)
 
-            #add new params to list
-            push!(params, ps)
-            #extract current training errors which we are trying to minimize
-            push!(errs, out[1])
-            #extract the other output variables 
-            if length(out) > 1
-                push!(outputs, out[2:end])
-            else
-                push!(outputs, ())
+            badx = reduce(|, isnan.(x) .| isinf.(x))
+
+            #only add points that are not duplicates and do not contain Inf/NaN values
+            if !badx && !in(x, xs)
+
+                #add new params to list
+                push!(params, ps)
+                #extract current training errors which we are trying to minimize
+                push!(errs, out[1])
+                #extract the other output variables 
+                if length(out) > 1
+                    push!(outputs, out[2:end])
+                else
+                    push!(outputs, ())
+                end
+                push!(xs, x)
             end
-            push!(xs, x)
         end
     end
     indcorrect = length(errs)
@@ -283,8 +289,8 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
         #remap x based on any clamping from pconvert
         p = convert_params(pconvert, x, opt_params, pnames)
         x = [map_range_inv(pconvertinv[i](p[i]), opt_params[i][1], opt_params[i][2]) for i in h]
-        
-        if !in(x, xs)
+        badx = reduce(|, isnan.(x) .| isinf.(x))
+        if !badx && !in(x, xs)
             push!(xs, x)
         end
     end
@@ -358,7 +364,8 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
 
         # println(mat1)
         #interpolated paramters
-        c = pinv(mat1) * vec
+        # println("Calculating interpolated parameters with pseudoinverse")
+        c = pinv(mat1, rtol = rtol = sqrt(eps(real(float(one(eltype(mat1))))))) * vec
 
         lambda = c[1:length(xs)]
         b = c[length(xs)+1:end-1]
@@ -445,7 +452,9 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
                 end
             end
 
-            validnewpoint = !in(candidateparams, params) && !in(xnew, xs)
+            badx = reduce(|, isnan.(xnew) .| isinf.(xnew))
+
+            validnewpoint = !in(candidateparams, params) && !in(xnew, xs) && !badx
             if !validnewpoint
                 printstyled(stdout, "NOT A VALID UNIQUE POINT TO TEST, SKIPPING", color=:red)
             end
@@ -510,7 +519,7 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
 end
 
 """
-     runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
+     runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter \$n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
 
 Runs hyperparameter optimization algorithm based on dynamic search 
 with and RBF surrogate function.  Given an optimization function and 
@@ -548,6 +557,8 @@ See runtests.jl for a complete example that also processes the output data.
 """
 function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
     (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict, pconvertinv = pconvertinv)
+    #for testing pinv error case starting with id = 2
+    # (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 2, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict, pconvertinv = pconvertinv)
     h = findall(a -> length(a) == 2, opt_params)
     ih = setdiff(eachindex(opt_params), h)
     (newerr, bestind) = findmin(errs)
