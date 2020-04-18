@@ -555,7 +555,7 @@ See runtests.jl for a complete example that also processes the output data.
     given in `pconvert`.  If an arugment is supplied to `pconvert` that differs from the identity function
     and nothing is supplied to `pconvertinv` then the parameters may not be optimized correctly. 
 """
-function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params))
+function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; resultsdict = (), pnames = ["Parameter $n" for n in 1:length(opt_params)], pconvert = map(a -> identity, opt_params), pconvertinv = map(a -> identity, opt_params), maxtrials::Int64=typemax(Int64))
     (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict, pconvertinv = pconvertinv)
     #for testing pinv error case starting with id = 2
     # (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 2, nmax, isp, pnames = pnames, pconvert = pconvert, resultsdict = resultsdict, pconvertinv = pconvertinv)
@@ -566,7 +566,7 @@ function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; result
     results = [(1, errs[bestind], params[bestind], outputs[bestind])]
     bestparams = isp
     id = 2
-    while newerr < besterr
+    while (newerr < besterr) && (id <= maxtrials)
         println("=================================================================")
         println("=====================Starting Trial $id==========================")
         println("=================================================================")
