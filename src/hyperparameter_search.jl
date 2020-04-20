@@ -564,18 +564,22 @@ function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; result
     (newerr, bestind) = findmin(errs)
     besterr = Inf
     results = [(1, errs[bestind], params[bestind], outputs[bestind])]
-    bestparams = isp
+    # bestparams = isp
+    bestparams = params[bestind]
     id = 2
     while (newerr < besterr) && (id <= maxtrials)
         println("=================================================================")
         println("=====================Starting Trial $id==========================")
         println("=================================================================")
+        last_opt_params = opt_params
+        opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
         besterr = newerr
         (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv)
         (newerr, bestind) = findmin(errs)
         bestparams = params[bestind]
         if (newerr >= besterr) #try once ignoring previous points except best result and narrowing range
-            opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
+            # opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
+            opt_params = last_opt_params
             (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, [pconvertinv[i](a) for (i, a) in enumerate(bestparams)], resultsdict=resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv, usedictpoints=false)
             (newerr, bestind) = findmin(errs)
             bestparams = params[bestind]
