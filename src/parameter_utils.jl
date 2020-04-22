@@ -138,3 +138,37 @@ function refineparams(optparams, bestparams, pconvert, pconvertinv)
     end
     for (i, p) in enumerate(optparams)])
 end
+
+function centerparams(optparams, bestparams, pconvert, pconvertinv, scale = 1.0)
+#narrow range for parameter search based on the last
+#observed best parameters
+    optind = findall(a -> length(a)>1, optparams)
+    Tuple([begin
+        if length(p) == 1
+            p
+        else
+            # d = scale*(p[2] - p[1])
+            pc = pconvertinv[i](bestparams[i])
+            d = scale*pc
+            newp1 = pconvertinv[i](pconvert[i](pc - d/2))
+            newp2 = pconvertinv[i](pconvert[i](pc + d/2))
+            T = typeof(newp1)
+            if T <: Integer
+                if newp1 == newp2
+                    (newp1-1, newp2+1)
+                else
+                    (newp1, newp2)
+                end
+            else
+                if abs(newp1/newp2 - 1) < 0.01
+                    m = (newp1+newp2)/2
+                    d = m*0.005
+                    (T(m-d), T(m+d))
+                else   
+                    (newp1, newp2)
+                end
+            end            
+        end
+    end
+    for (i, p) in enumerate(optparams)])
+end

@@ -507,11 +507,12 @@ function run_HORDopt(optfunc::Function, opt_params, trialid, nmax, isp = []; res
 
         println(string("Updated perturbation variance is ", varn))
 
-        realxnew = map((i, x) -> map_range_inv(x, opt_params[i][1], opt_params[i][2]), h, eachindex(h))
+        # realxnew = map((i, x) -> map_range_inv(x, opt_params[i][1], opt_params[i][2]), h, eachindex(h))
 
         #update Fs, Xs, parameter vectors, and outputs 
         push!(errs, errnew)
-        push!(xs, realxnew)
+        # push!(xs, realxnew)
+        push!(xs, xnew)
         push!(params,  paramsnew)
         push!(outputs, outputnew)
     end
@@ -566,23 +567,29 @@ function runHORDopt_trials(optfunc::Function, opt_params, nmax, isp = []; result
     results = [(1, errs[bestind], params[bestind], outputs[bestind])]
     # bestparams = isp
     bestparams = params[bestind]
+    # opt_params = centerparams(opt_params, bestparams, pconvert, pconvertinv, 1.0)
     id = 2
     while (newerr < besterr) && (id <= maxtrials)
         println("=================================================================")
         println("=====================Starting Trial $id==========================")
         println("=================================================================")
         last_opt_params = opt_params
-        opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
+        # opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
         besterr = newerr
         (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv)
         (newerr, bestind) = findmin(errs)
         bestparams = params[bestind]
         if (newerr >= besterr) #try once ignoring previous points except best result and narrowing range
             # opt_params = refineparams(opt_params, bestparams, pconvert, pconvertinv)
-            opt_params = last_opt_params
+            opt_params = centerparams(opt_params, bestparams, pconvert, pconvertinv, 0.5)
+            # opt_params = last_opt_params
+            # (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, id, nmax, resultsdict = resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv)
             (errs, params, outputs, xs, resultsdict) = run_HORDopt(optfunc, opt_params, 1, nmax, [pconvertinv[i](a) for (i, a) in enumerate(bestparams)], resultsdict=resultsdict, pnames = pnames, pconvert = pconvert, pconvertinv = pconvertinv, usedictpoints=false)
             (newerr, bestind) = findmin(errs)
             bestparams = params[bestind]
+            # opt_params = centerparams(opt_params, bestparams, pconvert, pconvertinv, 0.5)
+        else
+            # opt_params = centerparams(opt_params, bestparams, pconvert, pconvertinv, 1.1)
         end
 
         push!(results, (id, errs[bestind], params[bestind], outputs[bestind]))
