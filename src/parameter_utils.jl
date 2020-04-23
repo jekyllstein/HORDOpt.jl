@@ -150,8 +150,15 @@ function centerparams(optparams, bestparams, pconvert, pconvertinv, scale = 1.0)
             # d = scale*(p[2] - p[1])
             pc = pconvertinv[i](bestparams[i])
             d = scale*pc
-            newp1 = pconvertinv[i](pconvert[i](pc - d/2))
-            newp2 = pconvertinv[i](pconvert[i](pc + d/2))
+
+            if d == 0
+                d1 = p[2] - p[1]
+                newp1 = pconvertinv[i](pconvert[i])(pc)
+                newp2 = newp1 + d1*scale
+            else
+                newp1 = pconvertinv[i](pconvert[i](pc - d/2))
+                newp2 = pconvertinv[i](pconvert[i](pc + d/2))
+            end
             T = typeof(newp1)
             if T <: Integer
                 if newp1 == newp2
